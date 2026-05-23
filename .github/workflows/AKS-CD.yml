@@ -1,0 +1,66 @@
+name: AKS-CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - uat
+          - prod
+
+      branch:
+        description: "Release Branch"
+        required: true
+        default: "V5.0"
+
+      image_id:
+        description: "Docker Image ID"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Validate Image ID
+        run: |
+          echo "Validating image ID..."
+
+          BRANCH="${{ github.event.inputs.branch }}"
+          IMAGE="${{ github.event.inputs.image_id }}"
+
+          VERSION=$(echo $BRANCH | sed 's/V//')
+
+          if [[ "$IMAGE" != ${VERSION}.* ]]; then
+            echo "Invalid image ID format"
+            exit 1
+          fi
+
+      - name: Display Deployment Details
+        run: |
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Branch: ${{ github.event.inputs.branch }}"
+          echo "Image: ${{ github.event.inputs.image_id }}"
+
+      - name: Login to Azure
+        run: |
+          echo "Azure Login Here"
+
+      - name: Deploy to AKS
+        run: |
+          echo "Deploying image..."
+
+          IMAGE=${{ github.event.inputs.image_id }}
+          ENV=${{ github.event.inputs.environment }}
+
+          echo "kubectl set image deployment/app app=myrepo:$IMAGE -n $ENV"
