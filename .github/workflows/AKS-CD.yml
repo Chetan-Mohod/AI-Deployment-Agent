@@ -121,4 +121,3 @@ jobs:
         run: |
           echo "Deployment completed successfully"
 
-     #Testing trigger commit
