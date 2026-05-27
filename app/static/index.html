@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Deploy Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0a0c10;
+    --surface:  #111318;
+    --card:     #161920;
+    --border:   #1e2330;
+    --accent:   #00e5ff;
+    --accent2:  #7c3aed;
+    --green:    #00d68f;
+    --red:      #ff4d6d;
+    --amber:    #ffb703;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --radius:   14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  header h1 span { color: var(--accent); }
+
+  .status-dot {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:.4; }
+  }
+
+  /* ── Quick chips ── */
+  .chips-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .chip {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,.06);
+  }
+
+  /* ── Messages ── */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg-row {
+    display: flex;
+    gap: 12px;
+    animation: fadeUp .25s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .msg-row.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; margin-top: 2px;
+  }
+  .avatar.agent {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .avatar.user {
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  .bubble {
+    max-width: 72%;
+    padding: 13px 17px;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+  .bubble.agent {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+  }
+  .bubble.user {
+    background: linear-gradient(135deg, rgba(0,229,255,.15), rgba(124,58,237,.15));
+    border: 1px solid rgba(0,229,255,.2);
+    border-top-right-radius: 4px;
+    text-align: right;
+  }
+
+  /* Markdown-like rendering */
+  .bubble strong { color: var(--accent); font-weight: 600; }
+  .bubble code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,.06);
+    padding: 2px 6px; border-radius: 5px;
+    font-size: 0.82rem;
+    color: var(--amber);
+  }
+  .bubble a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(0,229,255,.4);
+  }
+  .bubble a:hover { border-bottom-color: var(--accent); }
+
+  /* Deployment card inside bubble */
+  .deploy-card {
+    margin-top: 12px;
+    background: rgba(0,214,143,.07);
+    border: 1px solid rgba(0,214,143,.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .deploy-card .row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .deploy-card .label { color: var(--muted); }
+  .deploy-card .val   { color: var(--green); }
+
+  /* typing indicator */
+  .typing { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    animation: bounce .9s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce {
+    0%,60%,100% { transform:translateY(0); }
+    30% { transform:translateY(-6px); }
+  }
+
+  /* ── Input bar ── */
+  .input-bar {
+    padding: 16px 28px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .input-wrap {
+    display: flex;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    transition: border-color .2s;
+  }
+  .input-wrap:focus-within { border-color: var(--accent); }
+
+  #userInput {
+    flex: 1;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.92rem;
+    resize: none;
+    height: 24px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+  #userInput::placeholder { color: var(--muted); }
+
+  #sendBtn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; outline: none;
+    width: 36px; height: 36px; border-radius: 9px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity .2s, transform .1s;
+    align-self: flex-end;
+  }
+  #sendBtn:hover { opacity: .85; }
+  #sendBtn:active { transform: scale(.93); }
+  #sendBtn svg { width: 16px; height: 16px; fill: #000; }
+
+  .hint {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* env badge colours */
+  .env-dev  { color: #60a5fa; }
+  .env-qa   { color: var(--amber); }
+  .env-uat  { color: #c084fc; }
+  .env-prod { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">🚀</div>
+  <div>
+    <h1>Deploy <span>Agent</span></h1>
+  </div>
+  <div class="status-dot">
+    <div class="dot"></div>
+    <span>AKS-CD · live</span>
+  </div>
+</header>
+
+<!-- Quick chips -->
+<div class="chips-bar">
+  <span style="font-size:.72rem;color:var(--muted);align-self:center;margin-right:4px;">Quick:</span>
+  <div class="chip" onclick="quickSend('deploy to qa')">deploy to qa</div>
+  <div class="chip" onclick="quickSend('deploy to uat')">deploy to uat</div>
+  <div class="chip" onclick="quickSend('deploy to dev')">deploy to dev</div>
+  <div class="chip" onclick="quickSend('deploy to prod')">deploy to prod ⚠️</div>
+  <div class="chip" onclick="quickSend('reset')">🔄 reset</div>
+</div>
+
+<!-- Messages -->
+<div id="messages"></div>
+
+<!-- Input -->
+<div class="input-bar">
+  <div class="input-wrap">
+    <textarea id="userInput" placeholder="Type a message… e.g. 'deploy 5.0.123 to qa'" rows="1"></textarea>
+    <button id="sendBtn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div class="hint">Enter to send · Shift+Enter for newline · type <code>reset</code> to start over</div>
+</div>
+
+<script>
+  const API = '';   // same origin
+  let sessionId = null;
+  let isWaiting = false;
+
+  // ── Render markdown-lite ───────────────────────────────────────────────────
+  function renderText(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── Append message bubble ──────────────────────────────────────────────────
+  function appendMsg(role, html, deployData) {
+    const wrap = document.getElementById('messages');
+    const row = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const av = document.createElement('div');
+    av.className = `avatar ${role}`;
+    av.textContent = role === 'agent' ? '🤖' : '👤';
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role}`;
+    bubble.innerHTML = html;
+
+    if (deployData) {
+      const card = document.createElement('div');
+      card.className = 'deploy-card';
+      const envClass = `env-${deployData.environment}`;
+      card.innerHTML = `
+        <div class="row"><span class="label">Repo</span><span class="val">${deployData.repo}</span></div>
+        <div class="row"><span class="label">Branch</span><span class="val">${deployData.branch}</span></div>
+        <div class="row"><span class="label">Environment</span><span class="val ${envClass}">${deployData.environment.toUpperCase()}</span></div>
+        <div class="row"><span class="label">Image</span><span class="val">${deployData.image_id}</span></div>
+        ${deployData.run_id ? `<div class="row"><span class="label">Run ID</span><span class="val">${deployData.run_id}</span></div>` : ''}
+      `;
+      bubble.appendChild(card);
+    }
+
+    row.appendChild(av);
+    row.appendChild(bubble);
+    wrap.appendChild(row);
+    wrap.scrollTop = wrap.scrollHeight;
+    return row;
+  }
+
+  // ── Typing indicator ───────────────────────────────────────────────────────
+  function showTyping() {
+    const wrap = document.getElementById('messages');
+    const row = document.createElement('div');
+    row.className = 'msg-row agent';
+    row.id = 'typing-indicator';
+    row.innerHTML = `
+      <div class="avatar agent">🤖</div>
+      <div class="bubble agent">
+        <div class="typing"><span></span><span></span><span></span></div>
+      </div>`;
+    wrap.appendChild(row);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  // ── Send message ───────────────────────────────────────────────────────────
+  async function sendMessage() {
+    if (isWaiting) return;
+    const input = document.getElementById('userInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    input.style.height = '24px';
+    appendMsg('user', renderText(text));
+    isWaiting = true;
+    showTyping();
+
+    try {
+      const res = await fetch(`${API}/api/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, message: text }),
+      });
+      const data = await res.json();
+      hideTyping();
+      sessionId = data.session_id;
+      appendMsg('agent', renderText(data.reply), data.deployment || null);
+    } catch (err) {
+      hideTyping();
+      appendMsg('agent', '❌ Could not reach the server. Is it running?');
+    }
+    isWaiting = false;
+  }
+
+  function quickSend(text) {
+    document.getElementById('userInput').value = text;
+    sendMessage();
+  }
+
+  // ── Enter key ──────────────────────────────────────────────────────────────
+  document.getElementById('userInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Auto-resize textarea
+  document.getElementById('userInput').addEventListener('input', function() {
+    this.style.height = '24px';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  // ── Welcome message ────────────────────────────────────────────────────────
+  window.onload = () => {
+    appendMsg('agent', renderText(
+      `👋 Hey! I'm your **AKS Deployment Agent**.\n\n` +
+      `I'll deploy your service to Kubernetes in seconds. Just tell me:\n\n` +
+      `• 🌍 **Environment** — \`dev\` · \`qa\` · \`uat\` · \`prod\`\n` +
+      `• 🌿 **Branch** — \`V5.0\` or \`V6.0\`\n` +
+      `• 🐳 **Image ID** — e.g. \`5.0.123\`\n\n` +
+      `You can say it all at once:\n` +
+      `_"Deploy 5.0.123 to qa from V5.0"_\n\n` +
+      `Or just start with an environment and I'll ask for the rest.`
+    ));
+  };
+</script>
+</body>
+</html>
