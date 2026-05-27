@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ai-deployment-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false          # You will paste this in Render dashboard
+      - key: GITHUB_OWNER
+        value: Chetan-Mohod
+      - key: WORKFLOW_FILE
+        value: AKS-CD.yml
+      - key: OPENAI_API_KEY
+        sync: false          # Optional — paste Groq key here
+      - key: OPENAI_MODEL
+        value: llama-3.1-8b-instant
+      - key: APP_ENV
+        value: production

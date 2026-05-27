@@ -19,48 +19,108 @@ on:
         default: "V5.0"
 
       image_id:
-        description: "Docker Image ID"
+        description: "Docker Image ID (Example: 5.0.123)"
         required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: read
+
+
+#Adding comment to generate the PR for trigger
     steps:
-      - name: Checkout Repo
+
+      # Checkout branch
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
 
-      - name: Validate Image ID
+      # Validation Step
+      - name: Validate Branch, Image and PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Validating image ID..."
+
+          set -e
 
           BRANCH="${{ github.event.inputs.branch }}"
           IMAGE="${{ github.event.inputs.image_id }}"
 
-          VERSION=$(echo $BRANCH | sed 's/V//')
+          echo "Branch: $BRANCH"
+          echo "Image: $IMAGE"
 
-          if [[ "$IMAGE" != ${VERSION}.* ]]; then
-            echo "Invalid image ID format"
+          # Extract version from branch
+          VERSION=$(echo "$BRANCH" | sed 's/V//')
+
+          echo "Expected Version: $VERSION"
+
+          # Validate image format
+          # Example allowed:
+          # 5.0.1
+          # 5.0.25
+
+          if [[ ! "$IMAGE" =~ ^${VERSION}\.[1-9][0-9]*$ ]]; then
+            echo "Invalid image format"
+            echo "Expected: ${VERSION}.<pr_number>"
             exit 1
           fi
 
+          # Extract PR number
+          PR_NUMBER=$(echo "$IMAGE" | awk -F '.' '{print $3}')
+
+          echo "PR Number: $PR_NUMBER"
+
+          # Verify PR exists
+          STATUS=$(curl -s \
+            -o /dev/null \
+            -w "%{http_code}" \
+            -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER)
+
+          if [ "$STATUS" -ne 200 ]; then
+            echo "PR #$PR_NUMBER does not exist"
+            exit 1
+          fi
+
+          echo "PR validation successful"
+
+      # Deployment Summary
       - name: Display Deployment Details
         run: |
-          echo "Environment: ${{ github.event.inputs.environment }}"
-          echo "Branch: ${{ github.event.inputs.branch }}"
-          echo "Image: ${{ github.event.inputs.image_id }}"
+          echo "=================================="
+          echo "Deployment Details"
+          echo "=================================="
+          echo "Environment : ${{ github.event.inputs.environment }}"
+          echo "Branch      : ${{ github.event.inputs.branch }}"
+          echo "Image ID    : ${{ github.event.inputs.image_id }}"
+          echo "=================================="
 
-      - name: Login to Azure
+      # Azure Login
+      - name: Azure Login
         run: |
-          echo "Azure Login Here"
+          echo "Login to Azure here"
 
+      # Deploy
       - name: Deploy to AKS
         run: |
-          echo "Deploying image..."
 
           IMAGE=${{ github.event.inputs.image_id }}
           ENV=${{ github.event.inputs.environment }}
 
+          echo "Deploying image: $IMAGE"
+          echo "Environment: $ENV"
+
+          # Example deployment command
           echo "kubectl set image deployment/app app=myrepo:$IMAGE -n $ENV"
+
+      # Success Message
+      - name: Deployment Completed
+        run: |
+          echo "Deployment completed successfully"
+
+#Adding comment to generate the PR for trigger
